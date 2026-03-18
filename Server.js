@@ -7,7 +7,8 @@ const app = express();
 
 /* ================= MIDDLEWARE ================= */
 app.use(cors({
-  origin: "*"
+  origin: process.env.FRONTEND_URL || "http://localhost:3000",
+  credentials: true
 }));
 app.use(express.json());
 
