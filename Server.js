@@ -7,7 +7,26 @@ const app = express();
 
 /* ================= MIDDLEWARE ================= */
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:3000",
+  origin: function (origin, callback) {
+    const allowed = [
+      process.env.CLIENT_ORIGIN,
+      process.env.FRONTEND_URL,
+      "http://localhost:3000"
+    ].filter(Boolean);
+
+    // Allow requests with no origin (e.g. mobile apps, curl)
+    if (!origin) return callback(null, true);
+
+    // Allow if matches any known origin OR is a Vercel preview URL
+    const isAllowed =
+      allowed.includes(origin) || origin.endsWith(".vercel.app");
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS: " + origin));
+    }
+  },
   credentials: true
 }));
 app.use(express.json());
