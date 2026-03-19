@@ -43,13 +43,19 @@ router.post("/add", async (req, res) => {
 
     await newUser.save();
 
-    await sendOTPEmail(email, otp);
+    try {
+      await sendOTPEmail(email, otp);
+    } catch (mailErr) {
+      // If email fails, delete the user so they can try again once fixed
+      await User.findByIdAndDelete(newUser._id);
+      throw new Error("Failed to send OTP email. Please check server logs.");
+    }
 
     res.json({ message: "OTP sent to email" });
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: err.message || "Server error" });
   }
 });
 
