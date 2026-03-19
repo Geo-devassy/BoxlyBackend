@@ -16,41 +16,65 @@ router.post("/add", async (req, res) => {
     // Check username
     const existingUsername = await User.findOne({ username });
     if (existingUsername) {
-      return res.status(400).json({ message: "Username already exists" });
+      if (!existingUsername.isVerified && existingUsername.email === email) {
+         // Same user trying again, we will handle this below
+      } else {
+        return res.status(400).json({ message: "Username already exists" });
+      }
     }
 
     // Check email
     const existingEmail = await User.findOne({ email });
-    if (existingEmail) {
-      return res.status(400).json({ message: "Email already exists" });
-    }
+    let isResend = false;
+    let userToSave = existingEmail;
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    if (existingEmail) {
+      if (existingEmail.isVerified) {
+        return res.status(400).json({ message: "Email already exists" });
+      } else {
+        isResend = true;
+      }
+    }
 
     // Generate OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = Date.now() + 5 * 60 * 1000; // 5 min
 
-    const newUser = new User({
-      username,
-      email,
-      password: hashedPassword,
-      role,
-      otp,
-      otpExpires: Date.now() + 5 * 60 * 1000, // 5 min
-      isVerified: false,
-    });
+    if (!isResend) {
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+      userToSave = new User({
+        username,
+        email,
+        password: hashedPassword,
+        role,
+        otp,
+        otpExpires,
+        isVerified: false,
+      });
+    } else {
+      userToSave.otp = otp;
+      userToSave.otpExpires = otpExpires;
+      // Optionally update password if they changed it
+      const hashedPassword = await bcrypt.hash(password, 10);
+      userToSave.password = hashedPassword;
+      userToSave.username = username;
+      userToSave.role = role;
+    }
 
-    await newUser.save();
+    // Send email first, so if it fails we don't save a broken user
+    try {
+      await sendOTPEmail(email, otp);
+    } catch (emailErr) {
+      console.error("Email sending failed:", emailErr);
+      return res.status(500).json({ message: "Failed to send OTP email. Please check the email address." });
+    }
 
-    // Fire and forget email - don't let email failure block user creation
-    sendOTPEmail(email, otp).catch(err => {
-      console.error("Delayed email error (logged only):", err);
-    });
+    await userToSave.save();
 
     res.json({ 
       success: true,
-      message: "User created! (Verification email attempted)" 
+      message: isResend ? "OTP resent to existing unverified user." : "User created! (Verification email sent)" 
     });
 
   } catch (err) {
@@ -80,12 +104,14 @@ router.post("/resend-otp", async (req, res) => {
     user.otp = otp;
     user.otpExpires = Date.now() + 5 * 60 * 1000; // 5 min
 
-    await user.save();
+    try {
+      await sendOTPEmail(email, otp);
+    } catch (emailErr) {
+      console.error("Email sending failed:", emailErr);
+      return res.status(500).json({ message: "Failed to send OTP email." });
+    }
 
-    // Fire and forget email
-    sendOTPEmail(email, otp).catch(err => {
-      console.error("Delayed email error (logged only):", err);
-    });
+    await user.save();
 
     res.json({ message: "New OTP sent successfully" });
 
