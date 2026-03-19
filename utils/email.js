@@ -20,7 +20,7 @@ const transporter = nodemailer.createTransport({
 const sendOTPEmail = async (email, otp) => {
   try {
     const info = await transporter.sendMail({
-      from: `"Boxly Warehouse" <${process.env.EMAIL_USER}>`,
+      from: `"Boxly Warehouse" <${process.env.SENDER_EMAIL || "myboxlyapp@gmail.com"}>`,
       to: email,
       subject: "Boxly OTP Verification",
       html: `
