@@ -4,12 +4,12 @@ const dns = require("dns");
 dns.setDefaultResultOrder("ipv4first");
 
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
+  host: process.env.SMTP_HOST || "smtp.sendgrid.net",
+  port: process.env.SMTP_PORT || 2525, // Render allows port 2525
+  secure: false, // false for port 2525, true for 465
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: process.env.EMAIL_USER, // E.g. 'apikey' for SendGrid
+    pass: process.env.EMAIL_PASS, // Your SendGrid/Brevo API key
   },
   tls: {
     rejectUnauthorized: false
