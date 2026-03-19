@@ -43,15 +43,15 @@ router.post("/add", async (req, res) => {
 
     await newUser.save();
 
-    try {
-      await sendOTPEmail(email, otp);
-    } catch (mailErr) {
-      // If email fails, delete the user so they can try again once fixed
-      await User.findByIdAndDelete(newUser._id);
-      throw new Error("Failed to send OTP email. Please check server logs.");
-    }
+    // Fire and forget email - don't let email failure block user creation
+    sendOTPEmail(email, otp).catch(err => {
+      console.error("Delayed email error (logged only):", err);
+    });
 
-    res.json({ message: "OTP sent to email" });
+    res.json({ 
+      success: true,
+      message: "User created! (Verification email attempted)" 
+    });
 
   } catch (err) {
     console.error(err);
