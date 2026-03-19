@@ -59,6 +59,42 @@ router.post("/add", async (req, res) => {
   }
 });
 
+/* ================= RESEND OTP ================= */
+router.post("/resend-otp", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(400).json({ message: "User not found" });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({ message: "User is already verified" });
+    }
+
+    // Generate new OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    user.otp = otp;
+    user.otpExpires = Date.now() + 5 * 60 * 1000; // 5 min
+
+    await user.save();
+
+    // Fire and forget email
+    sendOTPEmail(email, otp).catch(err => {
+      console.error("Delayed email error (logged only):", err);
+    });
+
+    res.json({ message: "New OTP sent successfully" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 /* ================= VERIFY OTP ================= */
 router.post("/verify-otp", async (req, res) => {
   try {
