@@ -6,6 +6,7 @@ const sendOTPEmail = async (email, otp) => {
       service_id: process.env.EMAILJS_SERVICE_ID,
       template_id: process.env.EMAILJS_TEMPLATE_ID,
       user_id: process.env.EMAILJS_PUBLIC_KEY,
+      accessToken: process.env.EMAILJS_PRIVATE_KEY, // ADDED: Private key for Strict Mode
       template_params: {
         to_email: email, // If you added a variable {{to_email}}
         otp_code: otp,   // If you added a variable {{otp_code}}
