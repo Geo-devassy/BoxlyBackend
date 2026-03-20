@@ -1,41 +1,29 @@
-const nodemailer = require("nodemailer");
-const dns = require("dns");
-
-dns.setDefaultResultOrder("ipv4first");
-
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.sendgrid.net",
-  port: process.env.SMTP_PORT || 2525, // Render allows port 2525
-  secure: false, // false for port 2525, true for 465
-  auth: {
-    user: process.env.EMAIL_USER, // E.g. 'apikey' for SendGrid
-    pass: process.env.EMAIL_PASS, // Your SendGrid/Brevo API key
-  },
-  tls: {
-    rejectUnauthorized: false
-  },
-  connectionTimeout: 10000, 
-});
+const axios = require("axios");
 
 const sendOTPEmail = async (email, otp) => {
   try {
-    const info = await transporter.sendMail({
-      from: `"Boxly Warehouse" <${process.env.SENDER_EMAIL || "myboxlyapp@gmail.com"}>`,
-      to: email,
-      subject: "Boxly OTP Verification",
-      html: `
-        <h2>Welcome to Boxly</h2>
-        <p>Your OTP is:</p>
-        <h1>${otp}</h1>
-        <p>This OTP expires in 5 minutes.</p>
-      `,
-    });
+    const data = {
+      service_id: process.env.EMAILJS_SERVICE_ID,
+      template_id: process.env.EMAILJS_TEMPLATE_ID,
+      user_id: process.env.EMAILJS_PUBLIC_KEY,
+      template_params: {
+        to_email: email, // If you added a variable {{to_email}}
+        otp_code: otp,   // If you added a variable {{otp_code}}
+        message: `Your Boxly OTP is: ${otp}. It expires in 5 minutes.` // If you log standard {{message}}
+      }
+    };
 
-    console.log("EMAIL SENT:", info.response);
-    return info;
+    const response = await axios.post(
+      "https://api.emailjs.com/api/v1.0/email/send",
+      data,
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+    console.log("EMAILJS SENT:", response.data);
+    return response.data;
   } catch (err) {
-    console.error("EMAIL ERROR:", err);
-    throw err; // Re-throw so the route knows it failed
+    console.error("EMAILJS ERROR:", err.response?.data || err.message);
+    throw err; // Re-throw to inform the caller
   }
 };
 
